@@ -7,42 +7,26 @@ on:
   push:
     branches:
       - master
-
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  deploy_job:
+    runs-on: ubuntu-latest #运行环境
+    name: build
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
-        with:
-          node-version: 12
-      - run: npm ci
-      - run: npm test
+      # check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2 #这里使用了github官方提供的action,checkout项目到虚拟机上
 
-  publish-npm:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
-        with:
-          node-version: 12
-          registry-url: https://registry.npmjs.org/
-      - run: npm ci
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+      - name: Install Dependencies
+        run: yarn
+      - name: Build
+        run: yarn build
 
-  publish-gpr:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      # 利用action把build好的文件上传到服务器/var/www/react-app路径下,需要确认此目录已在服务端创建
+      - name: deploy file to server
+        uses: wlixcc/SFTP-Deploy-Action@v1.0
         with:
-          node-version: 12
-          registry-url: https://npm.pkg.github.com/
-      - run: npm ci
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          username: "root" #ssh user name
+          server: "${{ secrets.SERVER_IP }}" #引用之前创建好的secret
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} #引用之前创建好的secret
+          local_path: "./build/*" # 对应我们项目build的文件夹路径
+          remote_path: "/var/www/react-app"
